@@ -33,9 +33,9 @@ interface TreeCanvasProps {
   showNodePhotos: boolean;
 }
 
-const NODE_WIDTH = 224;
-const NODE_HEIGHT = 100;
-const VERTICAL_ELBOW_OFFSET = 30;
+const NODE_WIDTH = 224; // Corresponds to w-56 in Tailwind
+const NODE_HEIGHT = 100; // Fixed height for consistent connectors
+const VERTICAL_ELBOW_OFFSET = 30; // Space for the vertical part of elbow connectors
 
 export function TreeCanvas({
   canvasRef,
@@ -57,6 +57,28 @@ export function TreeCanvas({
   findRelNode1Id,
   showNodePhotos,
 }: TreeCanvasProps) {
+
+  const [dynamicContainerWidth, setDynamicContainerWidth] = React.useState(800); // Initial server-safe default
+  const [dynamicContainerHeight, setDynamicContainerHeight] = React.useState(600); // Initial server-safe default
+
+  React.useEffect(() => {
+    // Calculate dimensions based on nodes, then update with client-specific window width
+    let maxNodeX = 0;
+    let maxNodeY = 0;
+    nodes.forEach(node => {
+      if (node.x !== undefined && node.y !== undefined) {
+        maxNodeX = Math.max(maxNodeX, node.x + NODE_WIDTH);
+        maxNodeY = Math.max(maxNodeY, node.y + NODE_HEIGHT);
+      }
+    });
+
+    const serverCalculatedWidth = Math.max(800, maxNodeX + 50); // Fallback for server or initial calc
+    const clientCalculatedWidth = Math.max(window.innerWidth * 0.7, maxNodeX + 50);
+    
+    setDynamicContainerWidth(clientCalculatedWidth);
+    setDynamicContainerHeight(Math.max(600, maxNodeY + 50));
+
+  }, [nodes]); // Recalculate if nodes change
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, nodeId: string) => {
     if (linkingSourceNodeId || isFindingRelationshipMode) {
@@ -99,7 +121,7 @@ export function TreeCanvas({
   };
 
   const handleNodeCardClick = (event: React.MouseEvent<HTMLDivElement>, nodeId: string) => {
-     if ((event.target as HTMLElement).closest('button')) {
+     if ((event.target as HTMLElement).closest('button[data-action="initiate-link"]')) { // More specific target
       return;
     }
     if (isFindingRelationshipMode) {
@@ -166,7 +188,10 @@ export function TreeCanvas({
     zIndex: 20,
     display: 'flex',
     gap: '8px', 
+    paddingTop: '0.5rem', 
   };
+
+  const renderedChildLines = new Set<string>();
 
 
   if (!nodes || nodes.length === 0) {
@@ -276,12 +301,12 @@ export function TreeCanvas({
       </TooltipProvider>
 
       <h2 className="text-xl font-semibold text-foreground mb-4 sr-only">Family Tree Canvas</h2>
-      <p className="text-sm text-muted-foreground mb-6 text-center pt-16"> 
+      <p className="text-sm text-muted-foreground mb-6 text-center pt-12"> 
         Click a person to see details. Drag to rearrange. Click Link icon to connect.
       </p>
 
-      <div className="relative min-h-[600px]">
-        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+      <div className="relative" style={{ width: `${dynamicContainerWidth}px`, height: `${dynamicContainerHeight}px` }}>
+        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0" style={{ minWidth: '100%', minHeight: '100%' }}>
           <defs>
             <marker
               id="arrowhead-child"
@@ -300,7 +325,7 @@ export function TreeCanvas({
           {edges.filter(edge => edge.type === 'spouse').map((edge) => {
             const sourceNode = nodes.find(n => n.id === edge.sourceId);
             const targetNode = nodes.find(n => n.id === edge.targetId);
-            if (!sourceNode || !targetNode) return null;
+            if (!sourceNode || !targetNode || sourceNode.x === undefined || sourceNode.y === undefined || targetNode.x === undefined || targetNode.y === undefined) return null;
 
             const sourceIsLeft = (sourceNode.x ?? 0) < (targetNode.x ?? 0);
             const p1 = getNodeCenter(sourceNode, sourceIsLeft ? 'right' : 'left');
@@ -327,79 +352,106 @@ export function TreeCanvas({
             );
           })}
 
-          {nodes.map(childNode => {
-            const parentEdgesToThisChild = edges.filter(
-              e => e.targetId === childNode.id && e.type === 'parent-child'
-            );
+          {/* Render Parent-Child Edges with Bus Lines for spoused parents */}
+          {edges.filter(edge => edge.type === 'spouse').map(spouseEdge => {
+            const parent1Node = nodes.find(n => n.id === spouseEdge.sourceId);
+            const parent2Node = nodes.find(n => n.id === spouseEdge.targetId);
 
-            if (parentEdgesToThisChild.length === 0) return null;
+            if (!parent1Node || !parent2Node || parent1Node.x === undefined || parent1Node.y === undefined || parent2Node.x === undefined || parent2Node.y === undefined) return null;
 
-            const parentIds = parentEdgesToThisChild.map(e => e.sourceId);
-            const actualParentNodes = nodes.filter(n => parentIds.includes(n.id));
-            const childAnchor = getNodeCenter(childNode, 'top');
+            const commonChildren = nodes.filter(node => {
+              if (node.x === undefined || node.y === undefined) return false;
+              const isChildOfParent1 = edges.some(e => e.type === 'parent-child' && e.sourceId === spouseEdge.sourceId && e.targetId === node.id);
+              const isChildOfParent2 = edges.some(e => e.type === 'parent-child' && e.sourceId === spouseEdge.targetId && e.targetId === node.id);
+              return isChildOfParent1 && isChildOfParent2;
+            });
 
-            if (actualParentNodes.length === 2) {
-              const [parent1, parent2] = actualParentNodes;
-              const spouseEdgeBetweenParents = edges.find(
-                e =>
-                  e.type === 'spouse' &&
-                  ((e.sourceId === parent1.id && e.targetId === parent2.id) ||
-                   (e.sourceId === parent2.id && e.targetId === parent1.id))
-              );
+            if (commonChildren.length === 0) return null;
 
-              if (spouseEdgeBetweenParents) {
-                const p1NodeForSpouseLine = nodes.find(n => n.id === spouseEdgeBetweenParents.sourceId);
-                const p2NodeForSpouseLine = nodes.find(n => n.id === spouseEdgeBetweenParents.targetId);
+            commonChildren.forEach(child => renderedChildLines.add(child.id)); // Mark child as rendered
 
-                if (p1NodeForSpouseLine && p2NodeForSpouseLine) {
-                  const sourceIsLeftSpouse = (p1NodeForSpouseLine.x ?? 0) < (p2NodeForSpouseLine.x ?? 0);
-                  const spouseLineP1 = getNodeCenter(p1NodeForSpouseLine, sourceIsLeftSpouse ? 'right' : 'left');
-                  const spouseLineP2 = getNodeCenter(p2NodeForSpouseLine, sourceIsLeftSpouse ? 'left' : 'right');
+            const spouseP1Center = getNodeCenter(parent1Node, 'center');
+            const spouseP2Center = getNodeCenter(parent2Node, 'center');
+            const spouseMidX = (spouseP1Center.x + spouseP2Center.x) / 2;
+            const spouseMidY = spouseP1Center.y; // Parents are on the same Y level
 
-                  const spouseMidX = (spouseLineP1.x + spouseLineP2.x) / 2;
-                  const spouseMidY = (spouseLineP1.y + spouseLineP2.y) / 2; 
-                  
-                  const parentsBottomY = spouseMidY + (NODE_HEIGHT / 2); 
-                  const horizontalChildBarY = parentsBottomY + VERTICAL_ELBOW_OFFSET;
+            const parentsBottomY = spouseMidY + (NODE_HEIGHT / 2);
+            const horizontalBusLineY = parentsBottomY + VERTICAL_ELBOW_OFFSET;
+            
+            const trunkPath = `M ${spouseMidX} ${spouseMidY} V ${horizontalBusLineY}`;
 
-                  const pathD = `M ${spouseMidX} ${spouseMidY} V ${horizontalChildBarY} H ${childAnchor.x} V ${childAnchor.y}`;
-                  
+            let minChildXCenter = Infinity;
+            let maxChildXCenter = -Infinity;
+            commonChildren.forEach(child => {
+              if (child.x === undefined) return;
+              const childTopAnchor = getNodeCenter(child, 'top');
+              minChildXCenter = Math.min(minChildXCenter, childTopAnchor.x);
+              maxChildXCenter = Math.max(maxChildXCenter, childTopAnchor.x);
+            });
+            
+            const busLinePath = (minChildXCenter <= maxChildXCenter) ? `M ${minChildXCenter} ${horizontalBusLineY} H ${maxChildXCenter}` : "";
+
+            return (
+              <React.Fragment key={`bus-${parent1Node.id}-${parent2Node.id}`}>
+                <path
+                  d={trunkPath}
+                  stroke={getConnectorStrokeColor('parent-child')}
+                  strokeWidth={connectorThickness}
+                  fill="none"
+                />
+                {busLinePath && (
+                   <path
+                    d={busLinePath}
+                    stroke={getConnectorStrokeColor('parent-child')}
+                    strokeWidth={connectorThickness}
+                    fill="none"
+                  />
+                )}
+                {commonChildren.map(child => {
+                  if (child.x === undefined || child.y === undefined) return null;
+                  const childTopAnchor = getNodeCenter(child, 'top');
+                  const childDropLinePath = `M ${childTopAnchor.x} ${horizontalBusLineY} V ${childTopAnchor.y}`;
                   return (
                     <path
-                      key={`midpoint-to-${childNode.id}`}
-                      d={pathD}
-                      stroke={getConnectorStrokeColor('child-from-midpoint')}
+                      key={`drop-${child.id}-from-${parent1Node.id}-${parent2Node.id}`}
+                      d={childDropLinePath}
+                      stroke={getConnectorStrokeColor('parent-child')}
                       strokeWidth={connectorThickness}
                       fill="none"
                       markerEnd="url(#arrowhead-child)"
                     />
                   );
-                }
-              }
-            }
-
-            return parentEdgesToThisChild.map(edge => {
-              const parentNode = nodes.find(n => n.id === edge.sourceId);
-              if (!parentNode) return null;
-
-              const parentAnchor = getNodeCenter(parentNode, 'bottom');
-              const pathD = `M ${parentAnchor.x} ${parentAnchor.y} V ${parentAnchor.y + VERTICAL_ELBOW_OFFSET} H ${childAnchor.x} V ${childAnchor.y}`;
-
-              return (
-                <path
-                  key={edge.id}
-                  d={pathD}
-                  stroke={getConnectorStrokeColor(edge.type as TreeEdgeType)}
-                  strokeWidth={connectorThickness}
-                  fill="none"
-                  markerEnd="url(#arrowhead-child)"
-                />
-              );
-            });
+                })}
+              </React.Fragment>
+            );
           })}
+          
+          {edges.filter(edge => edge.type === 'parent-child' && !renderedChildLines.has(edge.targetId)).map(edge => {
+            const parentNode = nodes.find(n => n.id === edge.sourceId);
+            const childNode = nodes.find(n => n.id === edge.targetId);
+
+            if (!parentNode || !childNode || parentNode.x === undefined || parentNode.y === undefined || childNode.x === undefined || childNode.y === undefined) return null;
+
+            const parentAnchor = getNodeCenter(parentNode, 'bottom');
+            const childAnchor = getNodeCenter(childNode, 'top');
+            const pathD = `M ${parentAnchor.x} ${parentAnchor.y} V ${parentAnchor.y + VERTICAL_ELBOW_OFFSET} H ${childAnchor.x} V ${childAnchor.y}`;
+            
+            return (
+              <path
+                key={edge.id}
+                d={pathD}
+                stroke={getConnectorStrokeColor('parent-child')}
+                strokeWidth={connectorThickness}
+                fill="none"
+                markerEnd="url(#arrowhead-child)"
+              />
+            );
+          })}
+
 
           {linkingSourceNodeId && sourceNodeForLinking && linkingMouseCoords && (
             (() => {
+              if (sourceNodeForLinking.x === undefined || sourceNodeForLinking.y === undefined) return null;
               const p1 = getNodeCenter(sourceNodeForLinking, 'center');
               return (
                 <line
@@ -417,6 +469,9 @@ export function TreeCanvas({
         </svg>
 
         {nodes.map((node) => {
+          if (node.x === undefined || node.y === undefined) {
+            return null; 
+          }
           let nodeBgClass = 'bg-[var(--custom-theme-color-node-bg)]';
           let nodeBorderClass = 'border-[var(--custom-theme-color-node-border)]';
 
@@ -430,8 +485,6 @@ export function TreeCanvas({
             nodeBgClass = 'bg-[var(--node-female-bg)]';
             nodeBorderClass = 'border-[var(--node-female-border)]';
           }
-          // Removed the explicit else if for 'other' or 'unknown'
-          // Now, if not deceased, male, or female, it uses the default custom-theme-color set above.
 
 
           const isSelectedForDetails = selectedNodeId === node.id && !linkingSourceNodeId && !isFindingRelationshipMode;
@@ -458,11 +511,12 @@ export function TreeCanvas({
                 "active:cursor-grabbing"
               )}
               style={{
-                left: `${node.x || 0}px`,
-                top: `${node.y || 0}px`,
+                left: `${node.x}px`,
+                top: `${node.y}px`,
                 width: `${NODE_WIDTH}px`,
                 height: `${NODE_HEIGHT}px`,
-                overflow: 'hidden',
+                fontFamily: 'var(--node-font-family)',
+                overflow: 'hidden', 
                 transform: (isSelectedForDetails || isSelectedForLinking || isSelectedForFindingRel1) ? 'scale(1.05)' : 'scale(1)',
               }}
               aria-label={`Family member: ${node.name}`}
@@ -489,6 +543,7 @@ export function TreeCanvas({
                 </div>
                 {(!linkingSourceNodeId && !isFindingRelationshipMode) && (
                   <Button
+                      data-action="initiate-link" // Added data-action for specific targeting
                       variant="outline"
                       size="icon"
                       className="absolute top-1 right-1 w-7 h-7 hover:bg-accent/20"
@@ -510,5 +565,6 @@ export function TreeCanvas({
     </div>
   );
 }
+    
 
     

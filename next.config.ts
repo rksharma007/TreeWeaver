@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.balkan.app', // Added this entry
+        port: '',
+        pathname: '/**', // Allow any path under this hostname
+      },
     ],
   },
 };
