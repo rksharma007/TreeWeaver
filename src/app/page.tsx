@@ -17,29 +17,29 @@ import jsPDF from 'jspdf';
 const generateEdgeId = () => `edge-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
 const NODE_WIDTH = 224;
-const NODE_HEIGHT = 100;
+const NODE_HEIGHT = 100; 
 const HORIZONTAL_SPACING = 80;
 const VERTICAL_SPACING = 100;
 
 
 const initialNodes: TreeNodeData[] = [
-  { id: '1', name: 'John Doe', birthDate: '1950-01-15', deathDate: '2020-05-20', x: 350, y: 50, photoUrl: 'https://placehold.co/80x80.png', gender: 'male', notes: 'Patriarch of the Doe family.', "data-ai-hint": "man portrait" },
-  { id: '2', name: 'Jane Smith (Doe)', birthDate: '1952-07-22', x: 650, y: 50, photoUrl: 'https://placehold.co/80x80.png', gender: 'female', notes: 'Matriarch of the Doe family.', "data-ai-hint": "woman portrait", status: 'divorced' },
-  { id: '3', name: 'Peter Doe', birthDate: '1975-03-10', x: 200, y: 250, photoUrl: 'https://placehold.co/80x80.png', gender: 'male', "data-ai-hint": "man portrait" },
-  { id: '4', name: 'Alice Doe-Green', birthDate: '1978-11-05', x: 500, y: 250, photoUrl: 'https://placehold.co/80x80.png', gender: 'female', "data-ai-hint": "woman portrait" },
-  { id: '5', name: 'Charlie Green', birthDate: '1976-09-01', x: 750, y: 250, photoUrl: 'https://placehold.co/80x80.png', gender: 'male', notes: 'Husband of Alice.', "data-ai-hint": "man portrait" },
-  { id: '6', name: 'Laura Doe', birthDate: '1980-06-15', x: 350, y: 400, photoUrl: 'https://placehold.co/80x80.png', gender: 'female', notes: 'Second child of John and Jane.', "data-ai-hint": "woman portrait" },
+  { id: '1', name: 'John Doe', photoUrl: 'https://placehold.co/80x80.png', gender: 'male', birthDate: '1970-01-01', "data-ai-hint": "man portrait" },
+  { id: '2', name: 'Jane Smith (Doe)', photoUrl: 'https://placehold.co/80x80.png', gender: 'female', birthDate: '1972-03-15', "data-ai-hint": "woman portrait", deathDate: '2020-05-10' },
+  { id: '3', name: 'Peter Doe', photoUrl: 'https://placehold.co/80x80.png', gender: 'male', birthDate: '1995-06-20', "data-ai-hint": "man portrait" },
+  { id: '4', name: 'Alice Doe-Green', photoUrl: 'https://placehold.co/80x80.png', gender: 'female', birthDate: '1998-09-10', "data-ai-hint": "woman portrait" },
+  { id: '5', name: 'Charlie Green', photoUrl: 'https://placehold.co/80x80.png', gender: 'male', birthDate: '1997-11-05', "data-ai-hint": "man portrait" },
+  { id: '6', name: 'Laura Doe', photoUrl: 'https://placehold.co/80x80.png', gender: 'female', birthDate: '2000-01-01', "data-ai-hint": "woman portrait" },
 ];
 
 const initialEdges: TreeEdgeData[] = [
-  { id: generateEdgeId(), sourceId: '1', targetId: '3', type: 'parent-child' },
-  { id: generateEdgeId(), sourceId: '2', targetId: '3', type: 'parent-child' },
-  { id: generateEdgeId(), sourceId: '1', targetId: '4', type: 'parent-child' },
-  { id: generateEdgeId(), sourceId: '2', targetId: '4', type: 'parent-child' },
-  { id: generateEdgeId(), sourceId: '1', targetId: '6', type: 'parent-child' },
-  { id: generateEdgeId(), sourceId: '2', targetId: '6', type: 'parent-child' },
-  { id: generateEdgeId(), sourceId: '1', targetId: '2', type: 'spouse', status: 'divorced' },
-  { id: generateEdgeId(), sourceId: '4', targetId: '5', type: 'spouse', status: 'married' },
+  { id: 'e1', sourceId: '1', targetId: '2', type: 'spouse', status: 'divorced' },
+  { id: 'e2', sourceId: '1', targetId: '3', type: 'parent-child' },
+  { id: 'e3', sourceId: '2', targetId: '3', type: 'parent-child' },
+  { id: 'e4', sourceId: '2', targetId: '4', type: 'parent-child' },
+  { id: 'e5', sourceId: '1', targetId: '4', type: 'parent-child' }, 
+  { id: 'e6', sourceId: '4', targetId: '5', type: 'spouse', status: 'married' },
+  { id: 'e7', sourceId: '1', targetId: '6', type: 'parent-child' },
+  { id: 'e8', sourceId: '2', targetId: '6', type: 'parent-child' },
 ];
 
 interface AppliedVisualSettings {
@@ -71,6 +71,8 @@ export default function HomePage() {
   const [isRelationshipResultDialogOpen, setIsRelationshipResultDialogOpen] = React.useState<boolean>(false);
   
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = React.useState<boolean>(false);
+  const [isHelpDialogOpen, setIsHelpDialogOpen] = React.useState<boolean>(false);
+
 
   const [connectorThickness, setConnectorThickness] = React.useState<number>(2);
   const [appliedVisualSettings, setAppliedVisualSettings] = React.useState<AppliedVisualSettings>({
@@ -87,7 +89,7 @@ export default function HomePage() {
 
   React.useEffect(() => {
     if (!selectedNodeId && nodes.length > 0 && !isAddingMode && !linkingSourceNodeId && !isRelationshipTypeDialogOpen && !isFindingRelationshipMode) {
-      setSelectedNodeId(nodes[0].id);
+      // setSelectedNodeId(nodes[0].id); // Comment out or adjust initial selection behavior
     }
   }, [nodes, selectedNodeId, isAddingMode, linkingSourceNodeId, isRelationshipTypeDialogOpen, isFindingRelationshipMode]);
 
@@ -106,15 +108,18 @@ export default function HomePage() {
         if (isSettingsSheetOpen) {
           setIsSettingsSheetOpen(false);
         }
+        if (isHelpDialogOpen) {
+          setIsHelpDialogOpen(false);
+        }
       }
     };
-    if (linkingSourceNodeId || isRelationshipTypeDialogOpen || isFindingRelationshipMode || isSettingsSheetOpen) {
+    if (linkingSourceNodeId || isRelationshipTypeDialogOpen || isFindingRelationshipMode || isSettingsSheetOpen || isHelpDialogOpen) {
       document.addEventListener('keydown', handleEscapeKey);
     }
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [linkingSourceNodeId, isRelationshipTypeDialogOpen, isFindingRelationshipMode, isSettingsSheetOpen]);
+  }, [linkingSourceNodeId, isRelationshipTypeDialogOpen, isFindingRelationshipMode, isSettingsSheetOpen, isHelpDialogOpen]);
 
 
   const handleSelectNode = (nodeId: string | null) => {
@@ -375,7 +380,7 @@ export default function HomePage() {
     nodes.forEach(n => adj[n.id] = { children: [], spouses: [], parents: [] });
 
     edges.forEach(edge => {
-      if (!nodeMap.has(edge.sourceId) || !nodeMap.has(edge.targetId)) return;
+      if (!nodeMap.has(edge.sourceId) || !nodeMap.has(edge.targetId)) return; 
       if (edge.type === 'parent-child') {
         adj[edge.sourceId]?.children.push(edge.targetId);
         adj[edge.targetId]?.parents.push(edge.sourceId);
@@ -397,30 +402,31 @@ export default function HomePage() {
     const queue: { nodeId: string, layer: number }[] = roots.map(r => ({ nodeId: r.id, layer: 0 }));
     const visitedForLayering = new Set<string>();
 
+    // Phase 1: BFS for initial layering
     while (queue.length > 0) {
       const { nodeId, layer } = queue.shift()!;
-
+      
       if (visitedForLayering.has(nodeId) && positions[nodeId]?.layer !== undefined && layer <= positions[nodeId].layer ) {
           continue;
       }
-
+    
       if (positions[nodeId]?.layer !== undefined && positions[nodeId].layer !== layer && layerNodes[positions[nodeId].layer]) {
           layerNodes[positions[nodeId].layer] = layerNodes[positions[nodeId].layer].filter(id => id !== nodeId);
       }
-
+    
       positions[nodeId] = { ...positions[nodeId], y: layer * (NODE_HEIGHT + VERTICAL_SPACING) + 50, layer };
       if (!layerNodes[layer]) layerNodes[layer] = [];
       if (!layerNodes[layer].includes(nodeId)) layerNodes[layer].push(nodeId);
-
+    
       visitedForLayering.add(nodeId);
       maxLayer = Math.max(maxLayer, layer);
-
+    
       (adj[nodeId]?.children || []).forEach(childId => {
-        if (nodeMap.has(childId)) {
+        if (nodeMap.has(childId)) { 
             queue.push({ nodeId: childId, layer: layer + 1 });
         }
       });
-
+    
       (adj[nodeId]?.spouses || []).forEach(spouseId => {
          if (nodeMap.has(spouseId) && (!visitedForLayering.has(spouseId) || (positions[spouseId]?.layer !== undefined && layer < positions[spouseId].layer))) { 
              queue.push({nodeId: spouseId, layer: layer}); 
@@ -430,6 +436,7 @@ export default function HomePage() {
       });
     }
 
+    // Phase 2: Spouse Layer Synchronization (Iterative)
     let changedInSpouseSyncIteration;
     for (let iter = 0; iter < nodes.length; iter++) { 
         changedInSpouseSyncIteration = false;
@@ -438,6 +445,7 @@ export default function HomePage() {
                 const sourceId = edge.sourceId;
                 const targetId = edge.targetId;
 
+                if (!nodeMap.has(sourceId) || !nodeMap.has(targetId)) return; 
                 if (!positions[sourceId] || positions[sourceId].layer === undefined ||
                     !positions[targetId] || positions[targetId].layer === undefined) return;
 
@@ -469,9 +477,9 @@ export default function HomePage() {
         if (!changedInSpouseSyncIteration) break; 
     }
 
-    
+    // Phase 3: Handle nodes not reached by BFS (orphans or separate fragments)
     nodes.forEach(node => {
-        if (!positions[node.id] || positions[node.id].layer === undefined) {
+        if (!positions[node.id] || positions[node.id].layer === undefined) { 
             const defaultLayer = roots.length > 0 ? maxLayer + 1 : 0; 
             positions[node.id] = { ...positions[node.id], y: defaultLayer * (NODE_HEIGHT + VERTICAL_SPACING) + 50, layer: defaultLayer };
             if (!layerNodes[defaultLayer]) layerNodes[defaultLayer] = [];
@@ -479,7 +487,6 @@ export default function HomePage() {
             maxLayer = Math.max(maxLayer, defaultLayer);
         }
     });
-    
     
     let finalMaxLayer = 0;
     Object.keys(layerNodes).forEach(layerKey => {
@@ -491,13 +498,13 @@ export default function HomePage() {
     maxLayer = finalMaxLayer;
 
 
-    const canvasWidth = canvasEl.clientWidth || (window.innerWidth * 0.7); 
+    // Phase 4: Horizontal Positioning (X-coordinates)
+    const canvasWidth = canvasEl.clientWidth || (typeof window !== 'undefined' ? window.innerWidth * 0.7 : 800); 
 
     for (let l = 0; l <= maxLayer; l++) {
       const currentLayerNodeIds = layerNodes[l] || [];
       if (currentLayerNodeIds.length === 0) continue;
 
-      
       const processedInLayer = new Set<string>();
       const layerElements: {id: string, width: number, actualIds: string[]}[] = []; 
 
@@ -507,7 +514,6 @@ export default function HomePage() {
           const elementGroup = [nodeId]; 
           processedInLayer.add(nodeId);
 
-          
           const spousesInSameLayer = (adj[nodeId]?.spouses || []).filter(
               sId => nodeMap.has(sId) && positions[sId]?.layer === l && !processedInLayer.has(sId)
           );
@@ -516,7 +522,6 @@ export default function HomePage() {
               elementGroup.push(sId);
               processedInLayer.add(sId);
           });
-          
           
           elementGroup.sort((a, b) => (positions[a]?.x || 0) - (positions[b]?.x || 0) || a.localeCompare(b));
 
@@ -528,7 +533,6 @@ export default function HomePage() {
           });
       });
       
-      
       layerElements.sort((a,b) => (positions[a.id]?.x || 0) - (positions[b.id]?.x || 0) || a.id.localeCompare(b.id));
 
 
@@ -539,7 +543,7 @@ export default function HomePage() {
       layerElements.forEach(element => {
           let subElementX = currentX;
           element.actualIds.forEach((idInElement, index) => {
-              if (positions[idInElement]) {
+              if (positions[idInElement]) { 
                   positions[idInElement].x = subElementX;
               }
               subElementX += NODE_WIDTH + (index < element.actualIds.length -1 ? (HORIZONTAL_SPACING / 4) : 0) ; 
@@ -552,7 +556,6 @@ export default function HomePage() {
       if (positions[n.id] && positions[n.id].layer !== undefined) { 
         return { ...n, x: positions[n.id].x, y: positions[n.id].y };
       }
-      
       return { ...n, x: n.x || Math.random() * canvasWidth * 0.8 + 50, y: n.y || Math.random() * (NODE_HEIGHT + VERTICAL_SPACING) * (maxLayer +1) * 0.8 + 50 };
     });
 
@@ -568,7 +571,7 @@ export default function HomePage() {
     }, 100); 
 
     return () => clearTimeout(timer);
-  }, []); // Corrected: Empty dependency array for initial layout
+  }, []); // Empty dependency array to run once on mount
 
 
   const nodeForDetailsPanel = React.useMemo(() => {
@@ -656,7 +659,10 @@ export default function HomePage() {
 
   const handleApplyVisualCustomizations = (settings: AppliedVisualSettings) => {
     setAppliedVisualSettings(settings);
-    toast({ title: "Visual Settings Applied", description: "Node color, font, and photo visibility updated." });
+  };
+
+  const handleToggleHelpDialog = () => {
+    setIsHelpDialogOpen(prev => !prev);
   };
 
   return (
@@ -693,6 +699,8 @@ export default function HomePage() {
         isSettingsSheetOpen={isSettingsSheetOpen}
         onToggleSettingsSheet={() => setIsSettingsSheetOpen(!isSettingsSheetOpen)}
         
+        isHelpDialogOpen={isHelpDialogOpen}
+        onToggleHelpDialog={handleToggleHelpDialog}
         
         connectorThickness={connectorThickness}
         onConnectorThicknessChange={setConnectorThickness}
@@ -794,4 +802,3 @@ export default function HomePage() {
   );
 }
 
-    

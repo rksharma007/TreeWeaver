@@ -46,12 +46,15 @@ interface AppLayoutProps {
   isSettingsSheetOpen: boolean;
   onToggleSettingsSheet: () => void;
 
+  isHelpDialogOpen: boolean;
+  onToggleHelpDialog: () => void;
+
   // Visual Customization Props
   connectorThickness: number;
   onConnectorThicknessChange: (thickness: number) => void;
   appliedVisualSettings: AppliedVisualSettings;
   onApplyVisualCustomizations: (settings: AppliedVisualSettings) => void;
-  onAutoArrangeNodes: () => void; // Keep this for TreeCanvas
+  onAutoArrangeNodes: () => void; 
 }
 
 export default function AppLayout({
@@ -82,6 +85,8 @@ export default function AppLayout({
   onExportPDF,
   isSettingsSheetOpen,
   onToggleSettingsSheet,
+  isHelpDialogOpen,
+  onToggleHelpDialog,
   connectorThickness,
   onConnectorThicknessChange,
   appliedVisualSettings,
@@ -106,6 +111,8 @@ export default function AppLayout({
         onExportPDF={onExportPDF}
         isSettingsSheetOpen={isSettingsSheetOpen}
         onToggleSettingsSheet={onToggleSettingsSheet}
+        isHelpDialogOpen={isHelpDialogOpen}
+        onToggleHelpDialog={onToggleHelpDialog}
         // Pass props for CustomizationPanel (now in Settings Sheet)
         connectorThickness={connectorThickness}
         onConnectorThicknessChange={onConnectorThicknessChange}
@@ -129,7 +136,7 @@ export default function AppLayout({
                 isFindingRelationshipMode, 
                 findRelNode1Id,
                 onInitiateAdd,
-                showNodePhotos: appliedVisualSettings.showPhotos, // Pass applied setting to TreeCanvas
+                showNodePhotos: appliedVisualSettings.showPhotos, 
               });
             }
             return child;
