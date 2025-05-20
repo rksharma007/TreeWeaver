@@ -12,11 +12,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { siteConfig } from '@/config/site';
-import { Users, FilePlus, Upload, Download, Settings, FileJson, FileJson2, FileImage, FileText } from 'lucide-react'; 
+import { Users, FilePlus, Upload, Download, Settings, FileJson, FileJson2, FileImage, FileText, HelpCircle } from 'lucide-react'; 
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogHelpDescription } from '@/components/ui/dialog'; // Renamed to avoid conflict
 import { CustomizationPanel } from '@/components/tree/customization-panel';
+import { HelpGuide } from '@/components/help/help-guide';
+import { ScrollArea } from '../ui/scroll-area';
+
 
 interface AppliedVisualSettings {
   fontFamily: string;
@@ -32,6 +36,8 @@ interface SiteHeaderProps {
   onExportPDF: () => void;
   isSettingsSheetOpen: boolean;
   onToggleSettingsSheet: () => void;
+  isHelpDialogOpen: boolean;
+  onToggleHelpDialog: () => void;
   connectorThickness: number;
   onConnectorThicknessChange: (thickness: number) => void;
   isFindingRelationshipMode: boolean;
@@ -51,6 +57,8 @@ export default function SiteHeader({
   onExportPDF,
   isSettingsSheetOpen,
   onToggleSettingsSheet,
+  isHelpDialogOpen,
+  onToggleHelpDialog,
   connectorThickness,
   onConnectorThicknessChange,
   isFindingRelationshipMode,
@@ -142,6 +150,11 @@ export default function SiteHeader({
               </DropdownMenuContent>
             </DropdownMenu>
 
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={onToggleHelpDialog}>
+              <HelpCircle className="h-5 w-5" />
+              <span className="sr-only">Help & Guide</span>
+            </Button>
+
             <Button variant="ghost" size="icon" className="rounded-full" onClick={onToggleSettingsSheet}>
               <Settings className="h-5 w-5" />
               <span className="sr-only">Tree Settings & Tools</span>
@@ -158,22 +171,37 @@ export default function SiteHeader({
               Customize tree appearance and use tools.
             </SheetDescription>
           </SheetHeader>
-          <div className="p-4 overflow-y-auto h-[calc(100vh-120px)]">
-            <CustomizationPanel
-              connectorThickness={connectorThickness}
-              onConnectorThicknessChange={onConnectorThicknessChange}
-              isFindingRelationshipMode={isFindingRelationshipMode}
-              findRelNode1Id={findRelNode1Id}
-              findRelNode1Name={findRelNode1Name}
-              onInitiateFindRelationship={onInitiateFindRelationship}
-              onCancelFindRelationship={onCancelFindRelationship}
-              // Pass applied settings and handler to apply new ones
-              initialAppliedSettings={appliedVisualSettings}
-              onApplyVisualCustomizations={onApplyVisualCustomizations}
-            />
-          </div>
+          <ScrollArea className="h-[calc(100vh-120px)]">
+            <div className="p-4">
+              <CustomizationPanel
+                connectorThickness={connectorThickness}
+                onConnectorThicknessChange={onConnectorThicknessChange}
+                isFindingRelationshipMode={isFindingRelationshipMode}
+                findRelNode1Id={findRelNode1Id}
+                findRelNode1Name={findRelNode1Name}
+                onInitiateFindRelationship={onInitiateFindRelationship}
+                onCancelFindRelationship={onCancelFindRelationship}
+                initialAppliedSettings={appliedVisualSettings}
+                onApplyVisualCustomizations={onApplyVisualCustomizations}
+              />
+            </div>
+          </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <Dialog open={isHelpDialogOpen} onOpenChange={onToggleHelpDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>TreeWeaver Help & Guide</DialogTitle>
+            <DialogHelpDescription>
+              Your trusty map to navigating the branches of your family tree!
+            </DialogHelpDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-grow overflow-y-auto pr-6">
+            <HelpGuide />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
